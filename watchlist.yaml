@@ -1,0 +1,33 @@
+{
+  "schedule": {
+    "check_interval_hours": 1,
+    "daily_summary_time_local": "20:00"
+  },
+  "alerts": {
+    "repeat_hours_while_in_stock": 12,
+    "telegram_enabled": true,
+    "send_daily_summary": false
+  },
+  "filters": {
+    "online_shipping_only": true,
+    "exclude_pickup_only": true
+  },
+  "items": [
+    {
+      "id": "jellycat-sky-dragon",
+      "name": "Jellycat Sky Dragon",
+      "retailer": "jellycat",
+      "url": "https://us.jellycat.com/sky-dragon/",
+      "enabled": true,
+      "fetch_strategy": "playwright",
+      "request_headers": {
+        "Referer": "https://us.jellycat.com/",
+        "Cookie": "${JELLYCAT_COOKIE}"
+      },
+      "availability_rules": {
+        "in_stock_keywords": ["add to bag", "in stock"],
+        "out_of_stock_keywords": ["out of stock", "sold out"]
+      }
+    }
+  ]
+}

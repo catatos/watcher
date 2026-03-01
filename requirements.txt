@@ -1,0 +1,3 @@
+# Optional dependency for native YAML parsing.
+# Without this package, the app still works with JSON-compatible YAML config.
+PyYAML>=6.0
