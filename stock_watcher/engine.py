@@ -97,15 +97,15 @@ def should_send_stock_alert(
 
 
 def _format_stock_alert(result: CheckResult, repeat_mode: bool) -> str:
-    prefix = "RESTOCK ALERT" if not repeat_mode else "IN STOCK REMINDER"
+    prefix = "🛎️ 有货啦！快去看看～" if not repeat_mode else "💖 仍然有货提醒"
     return (
         f"{prefix}\n"
-        f"Item: {result.item_name}\n"
-        f"Retailer: {result.retailer}\n"
-        f"Status: {result.status.value}\n"
-        f"Details: {result.matched_text}\n"
-        f"URL: {result.url}\n"
-        f"Checked: {result.checked_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        f"商品：{result.item_name}\n"
+        f"店铺：{result.retailer}\n"
+        f"状态：有货\n"
+        f"线索：{result.matched_text}\n"
+        f"链接：{result.url}\n"
+        f"时间：{result.checked_at.strftime('%Y-%m-%d %H:%M:%S')}"
     )
 
 
@@ -190,12 +190,12 @@ def maybe_send_daily_summary(
             unknown.append(item.name)
 
     msg = (
-        "DAILY STOCK SUMMARY\n"
-        f"In stock: {len(in_stock)}\n"
-        f"Out of stock: {len(out_of_stock)}\n"
-        f"Unknown/error: {len(unknown)}\n"
-        f"In stock items: {', '.join(in_stock) if in_stock else 'none'}\n"
-        f"Unknown/error items: {', '.join(unknown) if unknown else 'none'}"
+        "📊 每日库存小报\n"
+        f"✅ 有货：{len(in_stock)}\n"
+        f"❌ 缺货：{len(out_of_stock)}\n"
+        f"❓ 未知/异常：{len(unknown)}\n"
+        f"🛍️ 有货清单：{', '.join(in_stock) if in_stock else '暂无'}\n"
+        f"⚠️ 异常清单：{', '.join(unknown) if unknown else '暂无'}"
     )
 
     if config.alerts.telegram_enabled and options.bot_token and options.chat_id:

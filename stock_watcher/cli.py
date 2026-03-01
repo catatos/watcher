@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
             send_telegram_message(
                 options.bot_token,
                 options.chat_id,
-                "Test message from stock watcher",
+                "✅ 测试成功～Telegram 提醒已连通",
             )
             logger.info("Test Telegram message sent")
             return 0

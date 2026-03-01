@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 
@@ -46,10 +47,10 @@ DEFAULT_SHIPPING = [
 
 
 def _clean_text(html: str) -> str:
-    text = re.sub(r"<script[\\s\\S]*?</script>", " ", html, flags=re.IGNORECASE)
-    text = re.sub(r"<style[\\s\\S]*?</style>", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
+    text = re.sub(r"<style[\s\S]*?</style>", " ", text, flags=re.IGNORECASE)
     text = re.sub(r"<[^>]+>", " ", text)
-    text = re.sub(r"\\s+", " ", text)
+    text = re.sub(r"\s+", " ", text)
     return text.strip().lower()
 
 
@@ -62,7 +63,84 @@ def _collect_matches(text: str, candidates: list[str]) -> list[str]:
     return hits
 
 
+def _ldjson_blocks(html: str) -> list[str]:
+    pattern = re.compile(
+        r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>([\s\S]*?)</script>',
+        flags=re.IGNORECASE,
+    )
+    return [m.group(1).strip() for m in pattern.finditer(html)]
+
+
+def _normalize_availability(value: str) -> str:
+    v = value.strip().lower()
+    if "/" in v:
+        v = v.rsplit("/", 1)[-1]
+    return v
+
+
+def _collect_offer_availability(node: object, out: list[str]) -> None:
+    if isinstance(node, dict):
+        availability = node.get("availability")
+        if isinstance(availability, str):
+            out.append(_normalize_availability(availability))
+        for value in node.values():
+            _collect_offer_availability(value, out)
+        return
+
+    if isinstance(node, list):
+        for item in node:
+            _collect_offer_availability(item, out)
+
+
+def _collect_product_availability(node: object, out: list[str]) -> None:
+    if isinstance(node, dict):
+        node_type = node.get("@type")
+        if isinstance(node_type, list):
+            is_product = any(str(t).lower() == "product" for t in node_type)
+        else:
+            is_product = str(node_type).lower() == "product"
+        if is_product and "offers" in node:
+            _collect_offer_availability(node.get("offers"), out)
+
+        for value in node.values():
+            _collect_product_availability(value, out)
+        return
+
+    if isinstance(node, list):
+        for item in node:
+            _collect_product_availability(item, out)
+
+
+def _structured_availability_status(html: str) -> ParseOutcome | None:
+    values: list[str] = []
+    for block in _ldjson_blocks(html):
+        try:
+            parsed = json.loads(block)
+        except json.JSONDecodeError:
+            continue
+        _collect_product_availability(parsed, values)
+
+    has_in_stock = "instock" in values
+    has_out_of_stock = "outofstock" in values
+
+    if has_in_stock and not has_out_of_stock:
+        return ParseOutcome(
+            status=StockStatus.IN_STOCK,
+            matched_text="structured availability: instock",
+        )
+    if has_out_of_stock and not has_in_stock:
+        return ParseOutcome(
+            status=StockStatus.OUT_OF_STOCK,
+            matched_text="structured availability: outofstock",
+        )
+    return None
+
+
 def parse_availability(html: str, rules: AvailabilityRules, filters: FilterConfig) -> ParseOutcome:
+    structured = _structured_availability_status(html)
+    if structured is not None:
+        return structured
+
     text = _clean_text(html)
 
     in_keywords = DEFAULT_IN_STOCK + rules.in_stock_keywords

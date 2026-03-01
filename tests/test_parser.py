@@ -25,6 +25,52 @@ class ParserTests(unittest.TestCase):
         out = parse_availability(html, AvailabilityRules(), FilterConfig())
         self.assertEqual(out.status, StockStatus.UNKNOWN)
 
+    def test_ignores_script_and_style_content(self):
+        html = (
+            "<html>"
+            "<head><style>.soldout{content:'sold out'}</style></head>"
+            "<body><script>var msg='sold out';</script><button>Add to Cart</button></body>"
+            "</html>"
+        )
+        out = parse_availability(html, AvailabilityRules(), FilterConfig())
+        self.assertEqual(out.status, StockStatus.IN_STOCK)
+
+    def test_structured_in_stock_precedence(self):
+        html = (
+            "<html><head>"
+            '<script type="application/ld+json">'
+            '{"@context":"https://schema.org","@type":"Product",'
+            '"offers":{"@type":"Offer","availability":"https://schema.org/InStock"}}'
+            "</script></head>"
+            "<body>Notify me when available</body></html>"
+        )
+        out = parse_availability(html, AvailabilityRules(), FilterConfig())
+        self.assertEqual(out.status, StockStatus.IN_STOCK)
+
+    def test_structured_out_of_stock_precedence(self):
+        html = (
+            "<html><head>"
+            '<script type="application/ld+json">'
+            '{"@context":"https://schema.org","@type":"Product",'
+            '"offers":{"@type":"Offer","availability":"https://schema.org/OutOfStock"}}'
+            "</script></head>"
+            "<body><button>Add to Cart</button></body></html>"
+        )
+        out = parse_availability(html, AvailabilityRules(), FilterConfig())
+        self.assertEqual(out.status, StockStatus.OUT_OF_STOCK)
+
+    def test_structured_conflict_falls_back_to_keywords(self):
+        html = (
+            "<html><head>"
+            '<script type="application/ld+json">'
+            '[{"@context":"https://schema.org","@type":"Product","offers":{"availability":"https://schema.org/InStock"}},'
+            '{"@context":"https://schema.org","@type":"Product","offers":{"availability":"https://schema.org/OutOfStock"}}]'
+            "</script></head>"
+            "<body>sold out</body></html>"
+        )
+        out = parse_availability(html, AvailabilityRules(), FilterConfig())
+        self.assertEqual(out.status, StockStatus.OUT_OF_STOCK)
+
 
 if __name__ == "__main__":
     unittest.main()
